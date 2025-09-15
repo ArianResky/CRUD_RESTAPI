@@ -1,0 +1,28 @@
+### list
+GET http://localhost:8080/books
+
+### new book
+POST http://localhost:8080/books
+Content-Type: application/json
+
+{
+  "title": "test8",
+  "author": "mahsol8",
+  "price": 800
+}
+
+###selected book
+GET http://localhost:8080/books/14
+
+### update
+PUT http://localhost:8080/books/21
+Content-Type: application/json
+
+{
+  "title": "test8",
+  "author": "mahsol8",
+  "price": 888
+}
+
+
+DELETE http://localhost:8080/books/13
