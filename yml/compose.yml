@@ -1,0 +1,37 @@
+services:
+  app:
+    build: .
+    image: crud_restapi:latest
+    depends_on:
+      - db
+    environment:
+      ADDR: ":8080"
+      DB_HOST: db
+      DB_PORT: "3306"
+      DB_USER: "${DB_USER:-appuser}"
+      DB_PASS: "${DB_PASS:-supersecret}"
+      DB_NAME: "${DB_NAME:-myappdb}"
+    ports:
+      - "8080:8080"
+    restart: unless-stopped
+
+  db:
+    image: mariadb:11
+    environment:
+      MARIADB_ROOT_PASSWORD: "${DB_ROOT_PASS:-rootsecret}"
+      MARIADB_DATABASE: "${DB_NAME:-myappdb}"
+      MARIADB_USER: "${DB_USER:-appuser}"
+      MARIADB_PASSWORD: "${DB_PASS:-supersecret}"
+    volumes:
+      - db_data:/var/lib/mysql
+    ports:
+      - "3306:3306"
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-prootsecret"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+volumes:
+  db_data:
