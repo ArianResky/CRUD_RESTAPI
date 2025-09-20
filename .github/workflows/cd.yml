@@ -2,8 +2,8 @@ name: CD
 on:
   push:
     tags:
-      - "v*.*.*"       # روی تگ‌ها اجرا می‌شود، مثل v1.0.0
-  workflow_dispatch:     # اجرای دستی از تب Actions
+      - "v*.*.*"       
+  workflow_dispatch:     
 
 jobs:
   deploy:
@@ -20,23 +20,14 @@ jobs:
           go-version: "1.22.x"
           cache: true
 
-      # اگر go.mod در ریشه است این مرحله لازم است
       - name: Download deps (root)
         run: go mod download
 
-      # ✅ مهم: بیلد از پوشهٔ main (دو روش—یکی را نگه دار)
-      # روش 1: با working-directory
       - name: Build linux binary (from main/)
         working-directory: main
         run: |
           GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -ldflags="-s -w" -o bookstore .
           sha256sum bookstore > bookstore.sha256
-
-      # --- روش 2 (جایگزین روش 1): اگر working-directory نمی‌خوای ---
-      # - name: Build linux binary (from root, target ./main)
-      #   run: |
-      #     GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -ldflags="-s -w" -o bookstore ./main
-      #     sha256sum bookstore > bookstore.sha256
 
       - name: GitHub Release assets
         if: startsWith(github.ref, 'refs/tags/')
@@ -45,10 +36,7 @@ jobs:
           files: |
             main/bookstore
             main/bookstore.sha256
-        # اگر روش 2 را استفاده کردی، بالا را به:
-        #   bookstore
-        #   bookstore.sha256
-        # تغییر بده
+
 
       - name: Copy to server (scp)
         uses: appleboy/scp-action@v0.1.7
@@ -57,10 +45,8 @@ jobs:
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_KEY }}
           port: ${{ secrets.SSH_PORT || '22' }}
-          # اگر روش 1 را استفاده می‌کنی:
           source: "main/bookstore"
           target: "${{ secrets.APP_DIR }}/releases/${{ github.ref_name }}/"
-          # اگر روش 2 را استفاده کردی، source را به "bookstore" تغییر بده
 
       - name: Activate release (ssh + systemd)
         uses: appleboy/ssh-action@v1.2.0
