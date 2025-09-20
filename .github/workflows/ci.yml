@@ -9,12 +9,22 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-go@v5
         with:
           go-version: "1.22.x"
           cache: true
-      - run: go mod download
-      - run: go vet ./...
-      - run: CGO_ENABLED=0 go build -o app .
-      - run: go test -race -short ./...
+
+      - name: Download deps
+        run: go mod download
+
+      - name: Vet
+        run: go vet ./...
+
+      # ⬅️ مهم: به جای "." مسیر پکیج اجرایی‌ات را بده
+      - name: Build API
+        run: CGO_ENABLED=0 go build -o app ./main
+
+      - name: Test all packages
+        run: go test -race -short ./...
 
