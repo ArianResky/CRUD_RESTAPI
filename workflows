@@ -1,0 +1,69 @@
+name: CD
+on:
+  push:
+    tags:
+      - "v*.*.*"
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.22.x"
+          cache: true
+
+      - name: Build linux binary
+        run: |
+          GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -ldflags="-s -w" -o bookstore .
+          sha256sum bookstore > bookstore.sha256
+
+      - name: Upload release assets
+        uses: softprops/action-gh-release@v2
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          files: |
+            bookstore
+            bookstore.sha256
+
+      - name: Copy files to server (scp)
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          port: ${{ secrets.SSH_PORT || '22' }}
+          source: "bookstore"
+          target: "${{ secrets.APP_DIR }}/releases/${{ github.ref_name }}/"
+
+      - name: Activate release (ssh)
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          port: ${{ secrets.SSH_PORT || '22' }}
+          script: |
+            set -euo pipefail
+            APP_DIR="${{ secrets.APP_DIR }}"
+            REL="${{ github.ref_name }}"
+            mkdir -p "$APP_DIR/releases/$REL"
+            ln -sfn "$APP_DIR/releases/$REL" "$APP_DIR/current"
+            cat > "$APP_DIR/current/.env" <<'EOF'
+            ADDR=:8080
+            DB_HOST=${{ secrets.DB_HOST }}
+            DB_PORT=${{ secrets.DB_PORT }}
+            DB_USER=${{ secrets.DB_USER }}
+            DB_PASS=${{ secrets.DB_PASS }}
+            DB_NAME=${{ secrets.DB_NAME }}
+            EOF
+            install -m 0755 "$APP_DIR/releases/$REL/bookstore" "$APP_DIR/bookstore"
+            sudo systemctl daemon-reload || true
+            sudo systemctl restart bookstore.service
+            sudo systemctl status --no-pager --full bookstore.service
