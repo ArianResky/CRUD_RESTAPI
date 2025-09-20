@@ -21,7 +21,6 @@ jobs:
       - name: Vet
         run: go vet ./...
 
-      # ⬅️ مهم: به جای "." مسیر پکیج اجرایی‌ات را بده
       - name: Build API
         run: CGO_ENABLED=0 go build -o app ./main
 
